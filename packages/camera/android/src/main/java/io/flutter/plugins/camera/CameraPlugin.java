@@ -66,31 +66,31 @@ public class CameraPlugin implements MethodCallHandler {
     this.registrar = registrar;
     this.view = view;
 
-    orientationEventListener =
-        new OrientationEventListener(registrar.activity().getApplicationContext()) {
-          @Override
-          public void onOrientationChanged(int i) {
-            if (i == ORIENTATION_UNKNOWN) {
-              return;
-            }
-            // Convert the raw deg angle to the nearest multiple of 90.
-            currentOrientation = (int) Math.round(i / 90.0) * 90;
-          }
-        };
+    orientationEventListener = new OrientationEventListener(registrar.activity().getApplicationContext()) {
+      @Override
+      public void onOrientationChanged(int i) {
+        if (i == ORIENTATION_UNKNOWN) {
+          return;
+        }
+        // Convert the raw deg angle to the nearest multiple of 90.
+        currentOrientation = (int) Math.round(i / 90.0) * 90;
+      }
+    };
 
     registrar.addRequestPermissionsResultListener(new CameraRequestPermissionsListener());
   }
 
   public static void registerWith(Registrar registrar) {
     if (registrar.activity() == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-      // When a background flutter view tries to register the plugin, the registrar has no activity.
-      // We stop the registration process as this plugin is foreground only. Also, if the sdk is
+      // When a background flutter view tries to register the plugin, the registrar
+      // has no activity.
+      // We stop the registration process as this plugin is foreground only. Also, if
+      // the sdk is
       // less than 21 (min sdk for Camera2) we don't register the plugin.
       return;
     }
 
-    final MethodChannel channel =
-        new MethodChannel(registrar.messenger(), "plugins.flutter.io/camera");
+    final MethodChannel channel = new MethodChannel(registrar.messenger(), "plugins.flutter.io/camera");
 
     cameraManager = (CameraManager) registrar.activity().getSystemService(Context.CAMERA_SERVICE);
 
@@ -100,110 +100,104 @@ public class CameraPlugin implements MethodCallHandler {
   @Override
   public void onMethodCall(MethodCall call, final Result result) {
     switch (call.method) {
-      case "availableCameras":
-        try {
-          String[] cameraNames = cameraManager.getCameraIdList();
-          List<Map<String, Object>> cameras = new ArrayList<>();
-          for (String cameraName : cameraNames) {
-            HashMap<String, Object> details = new HashMap<>();
-            CameraCharacteristics characteristics =
-                cameraManager.getCameraCharacteristics(cameraName);
-            details.put("name", cameraName);
-            @SuppressWarnings("ConstantConditions")
-            int sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-            details.put("sensorOrientation", sensorOrientation);
+    case "availableCameras":
+      try {
+        String[] cameraNames = cameraManager.getCameraIdList();
+        List<Map<String, Object>> cameras = new ArrayList<>();
+        for (String cameraName : cameraNames) {
+          HashMap<String, Object> details = new HashMap<>();
+          CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraName);
+          details.put("name", cameraName);
+          @SuppressWarnings("ConstantConditions")
+          int sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+          details.put("sensorOrientation", sensorOrientation);
 
-            int lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
-            switch (lensFacing) {
-              case CameraMetadata.LENS_FACING_FRONT:
-                details.put("lensFacing", "front");
-                break;
-              case CameraMetadata.LENS_FACING_BACK:
-                details.put("lensFacing", "back");
-                break;
-              case CameraMetadata.LENS_FACING_EXTERNAL:
-                details.put("lensFacing", "external");
-                break;
-            }
-            cameras.add(details);
+          int lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
+          switch (lensFacing) {
+          case CameraMetadata.LENS_FACING_FRONT:
+            details.put("lensFacing", "front");
+            break;
+          case CameraMetadata.LENS_FACING_BACK:
+            details.put("lensFacing", "back");
+            break;
+          case CameraMetadata.LENS_FACING_EXTERNAL:
+            details.put("lensFacing", "external");
+            break;
           }
-          result.success(cameras);
-        } catch (Exception e) {
-          handleException(e, result);
+          cameras.add(details);
         }
-        break;
-      case "initialize":
-        {
-          String cameraName = call.argument("cameraName");
-          String resolutionPreset = call.argument("resolutionPreset");
-          boolean enableAudio = call.argument("enableAudio");
-          if (camera != null) {
-            camera.close();
-          }
-          camera = new Camera(cameraName, resolutionPreset, result, enableAudio);
-          orientationEventListener.enable();
-          break;
-        }
-      case "takePicture":
-        {
-          camera.takePicture((String) call.argument("path"), result);
-          break;
-        }
-      case "prepareForVideoRecording":
-        {
-          // This optimization is not required for Android.
-          result.success(null);
-          break;
-        }
-      case "startVideoRecording":
-        {
-          final String filePath = call.argument("filePath");
-          camera.startVideoRecording(filePath, result);
-          break;
-        }
-      case "stopVideoRecording":
-        {
-          camera.stopVideoRecording(result);
-          break;
-        }
-      case "startImageStream":
-        {
-          try {
-            camera.startPreviewWithImageStream();
-            result.success(null);
-          } catch (Exception e) {
-            handleException(e, result);
-          }
-          break;
-        }
-      case "stopImageStream":
-        {
-          try {
-            camera.startPreview();
-            result.success(null);
-          } catch (Exception e) {
-            handleException(e, result);
-          }
-          break;
-        }
-      case "dispose":
-        {
-          if (camera != null) {
-            camera.dispose();
-          }
-          orientationEventListener.disable();
-          result.success(null);
-          break;
-        }
-      default:
-        result.notImplemented();
-        break;
+        result.success(cameras);
+      } catch (Exception e) {
+        handleException(e, result);
+      }
+      break;
+    case "initialize": {
+      String cameraName = call.argument("cameraName");
+      String resolutionPreset = call.argument("resolutionPreset");
+      boolean enableAudio = call.argument("enableAudio");
+      if (camera != null) {
+        camera.close();
+      }
+      camera = new Camera(cameraName, resolutionPreset, result, enableAudio);
+      orientationEventListener.enable();
+      break;
+    }
+    case "takePicture": {
+      camera.takePicture((String) call.argument("path"), result);
+      break;
+    }
+    case "prepareForVideoRecording": {
+      // This optimization is not required for Android.
+      result.success(null);
+      break;
+    }
+    case "startVideoRecording": {
+      final String filePath = call.argument("filePath");
+      camera.startVideoRecording(filePath, result);
+      break;
+    }
+    case "stopVideoRecording": {
+      camera.stopVideoRecording(result);
+      break;
+    }
+    case "startImageStream": {
+      try {
+        camera.startPreviewWithImageStream();
+        result.success(null);
+      } catch (Exception e) {
+        handleException(e, result);
+      }
+      break;
+    }
+    case "stopImageStream": {
+      try {
+        camera.startPreview();
+        result.success(null);
+      } catch (Exception e) {
+        handleException(e, result);
+      }
+      break;
+    }
+    case "dispose": {
+      if (camera != null) {
+        camera.dispose();
+      }
+      orientationEventListener.disable();
+      result.success(null);
+      break;
+    }
+    default:
+      result.notImplemented();
+      break;
     }
   }
 
-  // We move catching CameraAccessException out of onMethodCall because it causes a crash
-  // on plugin registration for sdks incompatible with Camera2 (< 21). We want this plugin to
-  // to be able to compile with <21 sdks for apps that want the camera and support earlier version.
+  // We move catching CameraAccessException out of onMethodCall because it causes
+  // a crash
+  // on plugin registration for sdks incompatible with Camera2 (< 21). We want
+  // this plugin to
+  // to be able to compile with <21 sdks for apps that want the camera and support
+  // earlier version.
   @SuppressWarnings("ConstantConditions")
   private void handleException(Exception exception, Result result) {
     if (exception instanceof CameraAccessException) {
@@ -217,13 +211,11 @@ public class CameraPlugin implements MethodCallHandler {
     @Override
     public int compare(Size lhs, Size rhs) {
       // We cast here to ensure the multiplications won't overflow.
-      return Long.signum(
-          (long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
+      return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
     }
   }
 
-  private class CameraRequestPermissionsListener
-      implements PluginRegistry.RequestPermissionsResultListener {
+  private class CameraRequestPermissionsListener implements PluginRegistry.RequestPermissionsResultListener {
     @Override
     public boolean onRequestPermissionsResult(int id, String[] permissions, int[] grantResults) {
       if (id == CAMERA_REQUEST_ID) {
@@ -252,10 +244,7 @@ public class CameraPlugin implements MethodCallHandler {
     private boolean recordingVideo;
     private boolean enableAudio;
 
-    Camera(
-        final String cameraName,
-        final String resolutionPreset,
-        @NonNull final Result result,
+    Camera(final String cameraName, final String resolutionPreset, @NonNull final Result result,
         final boolean enableAudio) {
 
       this.cameraName = cameraName;
@@ -267,52 +256,47 @@ public class CameraPlugin implements MethodCallHandler {
       try {
         int minHeight;
         switch (resolutionPreset) {
-          case "high":
-            minHeight = 720;
-            break;
-          case "medium":
-            minHeight = 480;
-            break;
-          case "low":
-            minHeight = 240;
-            break;
-          default:
-            throw new IllegalArgumentException("Unknown preset: " + resolutionPreset);
+        case "high":
+          minHeight = 720;
+          break;
+        case "medium":
+          minHeight = 480;
+          break;
+        case "low":
+          minHeight = 240;
+          break;
+        default:
+          throw new IllegalArgumentException("Unknown preset: " + resolutionPreset);
         }
 
         CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraName);
-        StreamConfigurationMap streamConfigurationMap =
-            characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-        //noinspection ConstantConditions
+        StreamConfigurationMap streamConfigurationMap = characteristics
+            .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        // noinspection ConstantConditions
         sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-        //noinspection ConstantConditions
-        isFrontFacing =
-            characteristics.get(CameraCharacteristics.LENS_FACING)
-                == CameraMetadata.LENS_FACING_FRONT;
+        // noinspection ConstantConditions
+        isFrontFacing = characteristics.get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_FRONT;
         computeBestCaptureSize(streamConfigurationMap);
         computeBestPreviewAndRecordingSize(streamConfigurationMap, minHeight, captureSize);
 
         if (cameraPermissionContinuation != null) {
           result.error("cameraPermission", "Camera permission request ongoing", null);
         }
-        cameraPermissionContinuation =
-            new Runnable() {
-              @Override
-              public void run() {
-                cameraPermissionContinuation = null;
-                if (!hasCameraPermission()) {
-                  result.error(
-                      "cameraPermission", "MediaRecorderCamera permission not granted", null);
-                  return;
-                }
-                if (enableAudio && !hasAudioPermission()) {
-                  result.error(
-                      "cameraPermission", "MediaRecorderAudio permission not granted", null);
-                  return;
-                }
-                open(result);
-              }
-            };
+        cameraPermissionContinuation = new Runnable() {
+          @Override
+          public void run() {
+            cameraPermissionContinuation = null;
+            if (!hasCameraPermission()) {
+              result.error("cameraPermission", "MediaRecorderCamera permission not granted", null);
+              return;
+            }
+            if (enableAudio && !hasAudioPermission()) {
+              result.error("cameraPermission", "MediaRecorderAudio permission not granted", null);
+              return;
+            }
+            open(result);
+          }
+        };
         if (hasCameraPermission() && (!enableAudio || hasAudioPermission())) {
           cameraPermissionContinuation.run();
         } else {
@@ -323,9 +307,8 @@ public class CameraPlugin implements MethodCallHandler {
             }
 
             activity.requestPermissions(
-                enableAudio
-                    ? new String[] {Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}
-                    : new String[] {Manifest.permission.CAMERA},
+                enableAudio ? new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO }
+                    : new String[] { Manifest.permission.CAMERA },
                 CAMERA_REQUEST_ID);
           }
         }
@@ -337,20 +320,18 @@ public class CameraPlugin implements MethodCallHandler {
     }
 
     private void registerEventChannel() {
-      new EventChannel(
-              registrar.messenger(), "flutter.io/cameraPlugin/cameraEvents" + textureEntry.id())
-          .setStreamHandler(
-              new EventChannel.StreamHandler() {
-                @Override
-                public void onListen(Object arguments, EventChannel.EventSink eventSink) {
-                  Camera.this.eventSink = eventSink;
-                }
+      new EventChannel(registrar.messenger(), "flutter.io/cameraPlugin/cameraEvents" + textureEntry.id())
+          .setStreamHandler(new EventChannel.StreamHandler() {
+            @Override
+            public void onListen(Object arguments, EventChannel.EventSink eventSink) {
+              Camera.this.eventSink = eventSink;
+            }
 
-                @Override
-                public void onCancel(Object arguments) {
-                  Camera.this.eventSink = null;
-                }
-              });
+            @Override
+            public void onCancel(Object arguments) {
+              Camera.this.eventSink = null;
+            }
+          });
     }
 
     private boolean hasCameraPermission() {
@@ -360,8 +341,7 @@ public class CameraPlugin implements MethodCallHandler {
       }
 
       return Build.VERSION.SDK_INT < Build.VERSION_CODES.M
-          || activity.checkSelfPermission(Manifest.permission.CAMERA)
-              == PackageManager.PERMISSION_GRANTED;
+          || activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean hasAudioPermission() {
@@ -371,15 +351,15 @@ public class CameraPlugin implements MethodCallHandler {
       }
 
       return Build.VERSION.SDK_INT < Build.VERSION_CODES.M
-          || activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-              == PackageManager.PERMISSION_GRANTED;
+          || activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void computeBestPreviewAndRecordingSize(
-        StreamConfigurationMap streamConfigurationMap, int minHeight, Size captureSize) {
+    private void computeBestPreviewAndRecordingSize(StreamConfigurationMap streamConfigurationMap, int minHeight,
+        Size captureSize) {
       Size[] sizes = streamConfigurationMap.getOutputSizes(SurfaceTexture.class);
 
-      // Preview size and video size should not be greater than screen resolution or 1080.
+      // Preview size and video size should not be greater than screen resolution or
+      // 1080.
       Point screenResolution = new Point();
 
       final Activity activity = registrar.activity();
@@ -396,9 +376,7 @@ public class CameraPlugin implements MethodCallHandler {
 
       List<Size> goodEnough = new ArrayList<>();
       for (Size s : sizes) {
-        if (minHeight <= s.getHeight()
-            && s.getWidth() <= screenWidth
-            && s.getHeight() <= screenHeight
+        if (minHeight <= s.getHeight() && s.getWidth() <= screenWidth && s.getHeight() <= screenHeight
             && s.getHeight() <= 1080) {
           goodEnough.add(s);
         }
@@ -433,10 +411,8 @@ public class CameraPlugin implements MethodCallHandler {
 
     private void computeBestCaptureSize(StreamConfigurationMap streamConfigurationMap) {
       // For still image captures, we use the largest available size.
-      captureSize =
-          Collections.max(
-              Arrays.asList(streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)),
-              new CompareSizesByArea());
+      captureSize = Collections.max(Arrays.asList(streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)),
+          new CompareSizesByArea());
     }
 
     private void prepareMediaRecorder(String outputFilePath) throws IOException {
@@ -445,13 +421,16 @@ public class CameraPlugin implements MethodCallHandler {
       }
       mediaRecorder = new MediaRecorder();
 
-      if (enableAudio) mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+      if (enableAudio)
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
       mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
       mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-      if (enableAudio) mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+      if (enableAudio)
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
       mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
       mediaRecorder.setVideoEncodingBitRate(1024 * 1000);
-      if (enableAudio) mediaRecorder.setAudioSamplingRate(16000);
+      if (enableAudio)
+        mediaRecorder.setAudioSamplingRate(16000);
       mediaRecorder.setVideoFrameRate(27);
       mediaRecorder.setVideoSize(videoSize.getWidth(), videoSize.getHeight());
       mediaRecorder.setOutputFile(outputFilePath);
@@ -462,90 +441,87 @@ public class CameraPlugin implements MethodCallHandler {
 
     private void open(@Nullable final Result result) {
       if (!hasCameraPermission()) {
-        if (result != null) result.error("cameraPermission", "Camera permission not granted", null);
+        if (result != null)
+          result.error("cameraPermission", "Camera permission not granted", null);
       } else {
         try {
-          pictureImageReader =
-              ImageReader.newInstance(
-                  captureSize.getWidth(), captureSize.getHeight(), ImageFormat.JPEG, 2);
+          pictureImageReader = ImageReader.newInstance(captureSize.getWidth(), captureSize.getHeight(),
+              ImageFormat.JPEG, 2);
 
           // Used to steam image byte data to dart side.
-          imageStreamReader =
-              ImageReader.newInstance(
-                  previewSize.getWidth(), previewSize.getHeight(), ImageFormat.YUV_420_888, 2);
+          imageStreamReader = ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(),
+              ImageFormat.YUV_420_888, 2);
 
-          cameraManager.openCamera(
-              cameraName,
-              new CameraDevice.StateCallback() {
-                @Override
-                public void onOpened(@NonNull CameraDevice cameraDevice) {
-                  Camera.this.cameraDevice = cameraDevice;
-                  try {
-                    startPreview();
-                  } catch (CameraAccessException e) {
-                    if (result != null) result.error("CameraAccess", e.getMessage(), null);
-                    cameraDevice.close();
-                    Camera.this.cameraDevice = null;
-                    return;
-                  }
+          cameraManager.openCamera(cameraName, new CameraDevice.StateCallback() {
+            @Override
+            public void onOpened(@NonNull CameraDevice cameraDevice) {
+              Camera.this.cameraDevice = cameraDevice;
+              try {
+                startPreview();
+              } catch (CameraAccessException e) {
+                if (result != null)
+                  result.error("CameraAccess", e.getMessage(), null);
+                cameraDevice.close();
+                Camera.this.cameraDevice = null;
+                return;
+              }
 
-                  if (result != null) {
-                    Map<String, Object> reply = new HashMap<>();
-                    reply.put("textureId", textureEntry.id());
-                    reply.put("previewWidth", previewSize.getWidth());
-                    reply.put("previewHeight", previewSize.getHeight());
-                    result.success(reply);
-                  }
-                }
+              if (result != null) {
+                Map<String, Object> reply = new HashMap<>();
+                reply.put("textureId", textureEntry.id());
+                reply.put("previewWidth", previewSize.getWidth());
+                reply.put("previewHeight", previewSize.getHeight());
+                result.success(reply);
+              }
+            }
 
-                @Override
-                public void onClosed(@NonNull CameraDevice camera) {
-                  if (eventSink != null) {
-                    Map<String, String> event = new HashMap<>();
-                    event.put("eventType", "cameraClosing");
-                    eventSink.success(event);
-                  }
-                  super.onClosed(camera);
-                }
+            @Override
+            public void onClosed(@NonNull CameraDevice camera) {
+              if (eventSink != null) {
+                Map<String, String> event = new HashMap<>();
+                event.put("eventType", "cameraClosing");
+                eventSink.success(event);
+              }
+              super.onClosed(camera);
+            }
 
-                @Override
-                public void onDisconnected(@NonNull CameraDevice cameraDevice) {
-                  cameraDevice.close();
-                  Camera.this.cameraDevice = null;
-                  sendErrorEvent("The camera was disconnected.");
-                }
+            @Override
+            public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+              cameraDevice.close();
+              Camera.this.cameraDevice = null;
+              sendErrorEvent("The camera was disconnected.");
+            }
 
-                @Override
-                public void onError(@NonNull CameraDevice cameraDevice, int errorCode) {
-                  cameraDevice.close();
-                  Camera.this.cameraDevice = null;
-                  String errorDescription;
-                  switch (errorCode) {
-                    case ERROR_CAMERA_IN_USE:
-                      errorDescription = "The camera device is in use already.";
-                      break;
-                    case ERROR_MAX_CAMERAS_IN_USE:
-                      errorDescription = "Max cameras in use";
-                      break;
-                    case ERROR_CAMERA_DISABLED:
-                      errorDescription =
-                          "The camera device could not be opened due to a device policy.";
-                      break;
-                    case ERROR_CAMERA_DEVICE:
-                      errorDescription = "The camera device has encountered a fatal error";
-                      break;
-                    case ERROR_CAMERA_SERVICE:
-                      errorDescription = "The camera service has encountered a fatal error.";
-                      break;
-                    default:
-                      errorDescription = "Unknown camera error";
-                  }
-                  sendErrorEvent(errorDescription);
-                }
-              },
-              null);
+            @Override
+            public void onError(@NonNull CameraDevice cameraDevice, int errorCode) {
+              cameraDevice.close();
+              Camera.this.cameraDevice = null;
+              String errorDescription;
+              switch (errorCode) {
+              case ERROR_CAMERA_IN_USE:
+                errorDescription = "The camera device is in use already.";
+                break;
+              case ERROR_MAX_CAMERAS_IN_USE:
+                errorDescription = "Max cameras in use";
+                break;
+              case ERROR_CAMERA_DISABLED:
+                errorDescription = "The camera device could not be opened due to a device policy.";
+                break;
+              case ERROR_CAMERA_DEVICE:
+                errorDescription = "The camera device has encountered a fatal error";
+                break;
+              case ERROR_CAMERA_SERVICE:
+                errorDescription = "The camera service has encountered a fatal error.";
+                break;
+              default:
+                errorDescription = "Unknown camera error";
+              }
+              sendErrorEvent(errorDescription);
+            }
+          }, null);
         } catch (CameraAccessException e) {
-          if (result != null) result.error("cameraAccess", e.getMessage(), null);
+          if (result != null)
+            result.error("cameraAccess", e.getMessage(), null);
         }
       }
     }
@@ -562,57 +538,47 @@ public class CameraPlugin implements MethodCallHandler {
       final File file = new File(filePath);
 
       if (file.exists()) {
-        result.error(
-            "fileExists",
-            "File at path '" + filePath + "' already exists. Cannot overwrite.",
-            null);
+        result.error("fileExists", "File at path '" + filePath + "' already exists. Cannot overwrite.", null);
         return;
       }
 
-      pictureImageReader.setOnImageAvailableListener(
-          new ImageReader.OnImageAvailableListener() {
-            @Override
-            public void onImageAvailable(ImageReader reader) {
-              try (Image image = reader.acquireLatestImage()) {
-                ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                writeToFile(buffer, file);
-                result.success(null);
-              } catch (IOException e) {
-                result.error("IOError", "Failed saving image", null);
-              }
-            }
-          },
-          null);
+      pictureImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+          try (Image image = reader.acquireLatestImage()) {
+            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+            writeToFile(buffer, file);
+            result.success(null);
+          } catch (IOException e) {
+            result.error("IOError", "Failed saving image", null);
+          }
+        }
+      }, null);
 
       try {
-        final CaptureRequest.Builder captureBuilder =
-            cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+        final CaptureRequest.Builder captureBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
         captureBuilder.addTarget(pictureImageReader.getSurface());
         captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getMediaOrientation());
 
-        cameraCaptureSession.capture(
-            captureBuilder.build(),
-            new CameraCaptureSession.CaptureCallback() {
-              @Override
-              public void onCaptureFailed(
-                  @NonNull CameraCaptureSession session,
-                  @NonNull CaptureRequest request,
-                  @NonNull CaptureFailure failure) {
-                String reason;
-                switch (failure.getReason()) {
-                  case CaptureFailure.REASON_ERROR:
-                    reason = "An error happened in the framework";
-                    break;
-                  case CaptureFailure.REASON_FLUSHED:
-                    reason = "The capture has failed due to an abortCaptures() call";
-                    break;
-                  default:
-                    reason = "Unknown reason";
-                }
-                result.error("captureFailure", reason, null);
-              }
-            },
-            null);
+        cameraCaptureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
+          @Override
+          public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request,
+              @NonNull CaptureFailure failure) {
+            String reason;
+            switch (failure.getReason()) {
+            case CaptureFailure.REASON_ERROR:
+              reason = "An error happened in the framework";
+              break;
+            case CaptureFailure.REASON_FLUSHED:
+              reason = "The capture has failed due to an abortCaptures() call";
+              break;
+            default:
+              reason = "Unknown reason";
+            }
+            result.error("captureFailure", reason, null);
+          }
+        }, null);
       } catch (CameraAccessException e) {
         result.error("cameraAccess", e.getMessage(), null);
       }
@@ -624,10 +590,7 @@ public class CameraPlugin implements MethodCallHandler {
         return;
       }
       if (new File(filePath).exists()) {
-        result.error(
-            "fileExists",
-            "File at path '" + filePath + "' already exists. Cannot overwrite.",
-            null);
+        result.error("fileExists", "File at path '" + filePath + "' already exists. Cannot overwrite.", null);
         return;
       }
       try {
@@ -650,36 +613,29 @@ public class CameraPlugin implements MethodCallHandler {
         surfaces.add(recorderSurface);
         captureRequestBuilder.addTarget(recorderSurface);
 
-        cameraDevice.createCaptureSession(
-            surfaces,
-            new CameraCaptureSession.StateCallback() {
-              @Override
-              public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                try {
-                  if (cameraDevice == null) {
-                    result.error("configureFailed", "Camera was closed during configuration", null);
-                    return;
-                  }
-                  Camera.this.cameraCaptureSession = cameraCaptureSession;
-                  captureRequestBuilder.set(
-                      CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-                  cameraCaptureSession.setRepeatingRequest(
-                      captureRequestBuilder.build(), null, null);
-                  mediaRecorder.start();
-                  result.success(null);
-                } catch (CameraAccessException
-                    | IllegalStateException
-                    | IllegalArgumentException e) {
-                  result.error("cameraException", e.getMessage(), null);
-                }
+        cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
+          @Override
+          public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+            try {
+              if (cameraDevice == null) {
+                result.error("configureFailed", "Camera was closed during configuration", null);
+                return;
               }
+              Camera.this.cameraCaptureSession = cameraCaptureSession;
+              captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+              cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+              mediaRecorder.start();
+              result.success(null);
+            } catch (CameraAccessException | IllegalStateException | IllegalArgumentException e) {
+              result.error("cameraException", e.getMessage(), null);
+            }
+          }
 
-              @Override
-              public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                result.error("configureFailed", "Failed to configure camera session", null);
-              }
-            },
-            null);
+          @Override
+          public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+            result.error("configureFailed", "Failed to configure camera session", null);
+          }
+        }, null);
       } catch (CameraAccessException | IOException e) {
         result.error("videoRecordingFailed", e.getMessage(), null);
       }
@@ -717,32 +673,28 @@ public class CameraPlugin implements MethodCallHandler {
 
       surfaces.add(pictureImageReader.getSurface());
 
-      cameraDevice.createCaptureSession(
-          surfaces,
-          new CameraCaptureSession.StateCallback() {
+      cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
 
-            @Override
-            public void onConfigured(@NonNull CameraCaptureSession session) {
-              if (cameraDevice == null) {
-                sendErrorEvent("The camera was closed during configuration.");
-                return;
-              }
-              try {
-                cameraCaptureSession = session;
-                captureRequestBuilder.set(
-                    CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-              } catch (CameraAccessException | IllegalStateException | IllegalArgumentException e) {
-                sendErrorEvent(e.getMessage());
-              }
-            }
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession session) {
+          if (cameraDevice == null) {
+            sendErrorEvent("The camera was closed during configuration.");
+            return;
+          }
+          try {
+            cameraCaptureSession = session;
+            captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+          } catch (CameraAccessException | IllegalStateException | IllegalArgumentException e) {
+            sendErrorEvent(e.getMessage());
+          }
+        }
 
-            @Override
-            public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-              sendErrorEvent("Failed to configure the camera for preview.");
-            }
-          },
-          null);
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+          sendErrorEvent("Failed to configure the camera for preview.");
+        }
+      }, null);
     }
 
     private void startPreviewWithImageStream() throws CameraAccessException {
@@ -751,8 +703,7 @@ public class CameraPlugin implements MethodCallHandler {
       SurfaceTexture surfaceTexture = textureEntry.surfaceTexture();
       surfaceTexture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
 
-      captureRequestBuilder =
-          cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+      captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
 
       List<Surface> surfaces = new ArrayList<>();
 
@@ -761,89 +712,86 @@ public class CameraPlugin implements MethodCallHandler {
       captureRequestBuilder.addTarget(previewSurface);
 
       surfaces.add(imageStreamReader.getSurface());
+      if (surfaces == null || imageReader == null) {
+        return;
+      }
       captureRequestBuilder.addTarget(imageStreamReader.getSurface());
 
-      cameraDevice.createCaptureSession(
-          surfaces,
-          new CameraCaptureSession.StateCallback() {
-            @Override
-            public void onConfigured(@NonNull CameraCaptureSession session) {
-              if (cameraDevice == null) {
-                sendErrorEvent("The camera was closed during configuration.");
-                return;
-              }
-              try {
-                cameraCaptureSession = session;
-                captureRequestBuilder.set(
-                    CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-              } catch (CameraAccessException | IllegalStateException | IllegalArgumentException e) {
-                sendErrorEvent(e.getMessage());
-              }
-            }
+      cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession session) {
+          if (cameraDevice == null) {
+            sendErrorEvent("The camera was closed during configuration.");
+            return;
+          }
+          try {
+            cameraCaptureSession = session;
+            captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+          } catch (CameraAccessException | IllegalStateException | IllegalArgumentException e) {
+            sendErrorEvent(e.getMessage());
+          }
+        }
 
-            @Override
-            public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-              sendErrorEvent("Failed to configure the camera for streaming images.");
-            }
-          },
-          null);
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+          sendErrorEvent("Failed to configure the camera for streaming images.");
+        }
+      }, null);
 
       registerImageStreamEventChannel();
     }
 
     private void registerImageStreamEventChannel() {
-      final EventChannel imageStreamChannel =
-          new EventChannel(registrar.messenger(), "plugins.flutter.io/camera/imageStream");
+      final EventChannel imageStreamChannel = new EventChannel(registrar.messenger(),
+          "plugins.flutter.io/camera/imageStream");
 
-      imageStreamChannel.setStreamHandler(
-          new EventChannel.StreamHandler() {
-            @Override
-            public void onListen(Object o, EventChannel.EventSink eventSink) {
-              setImageStreamImageAvailableListener(eventSink);
-            }
+      imageStreamChannel.setStreamHandler(new EventChannel.StreamHandler() {
+        @Override
+        public void onListen(Object o, EventChannel.EventSink eventSink) {
+          setImageStreamImageAvailableListener(eventSink);
+        }
 
-            @Override
-            public void onCancel(Object o) {
-              imageStreamReader.setOnImageAvailableListener(null, null);
-            }
-          });
+        @Override
+        public void onCancel(Object o) {
+          imageStreamReader.setOnImageAvailableListener(null, null);
+        }
+      });
     }
 
     private void setImageStreamImageAvailableListener(final EventChannel.EventSink eventSink) {
-      imageStreamReader.setOnImageAvailableListener(
-          new ImageReader.OnImageAvailableListener() {
-            @Override
-            public void onImageAvailable(final ImageReader reader) {
-              Image img = reader.acquireLatestImage();
-              if (img == null) return;
+      imageStreamReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+        @Override
+        public void onImageAvailable(final ImageReader reader) {
+          Image img = reader.acquireLatestImage();
+          if (img == null)
+            return;
 
-              List<Map<String, Object>> planes = new ArrayList<>();
-              for (Image.Plane plane : img.getPlanes()) {
-                ByteBuffer buffer = plane.getBuffer();
+          List<Map<String, Object>> planes = new ArrayList<>();
+          for (Image.Plane plane : img.getPlanes()) {
+            ByteBuffer buffer = plane.getBuffer();
 
-                byte[] bytes = new byte[buffer.remaining()];
-                buffer.get(bytes, 0, bytes.length);
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes, 0, bytes.length);
 
-                Map<String, Object> planeBuffer = new HashMap<>();
-                planeBuffer.put("bytesPerRow", plane.getRowStride());
-                planeBuffer.put("bytesPerPixel", plane.getPixelStride());
-                planeBuffer.put("bytes", bytes);
+            Map<String, Object> planeBuffer = new HashMap<>();
+            planeBuffer.put("bytesPerRow", plane.getRowStride());
+            planeBuffer.put("bytesPerPixel", plane.getPixelStride());
+            planeBuffer.put("bytes", bytes);
 
-                planes.add(planeBuffer);
-              }
+            planes.add(planeBuffer);
+          }
 
-              Map<String, Object> imageBuffer = new HashMap<>();
-              imageBuffer.put("width", img.getWidth());
-              imageBuffer.put("height", img.getHeight());
-              imageBuffer.put("format", img.getFormat());
-              imageBuffer.put("planes", planes);
+          Map<String, Object> imageBuffer = new HashMap<>();
+          imageBuffer.put("width", img.getWidth());
+          imageBuffer.put("height", img.getHeight());
+          imageBuffer.put("format", img.getFormat());
+          imageBuffer.put("planes", planes);
 
-              eventSink.success(imageBuffer);
-              img.close();
-            }
-          },
-          null);
+          eventSink.success(imageBuffer);
+          img.close();
+        }
+      }, null);
     }
 
     private void sendErrorEvent(String errorDescription) {
@@ -890,10 +838,8 @@ public class CameraPlugin implements MethodCallHandler {
     }
 
     private int getMediaOrientation() {
-      final int sensorOrientationOffset =
-          (currentOrientation == ORIENTATION_UNKNOWN)
-              ? 0
-              : (isFrontFacing) ? -currentOrientation : currentOrientation;
+      final int sensorOrientationOffset = (currentOrientation == ORIENTATION_UNKNOWN) ? 0
+          : (isFrontFacing) ? -currentOrientation : currentOrientation;
       return (sensorOrientationOffset + sensorOrientation + 360) % 360;
     }
   }
