@@ -712,11 +712,10 @@ public class CameraPlugin implements MethodCallHandler {
       captureRequestBuilder.addTarget(previewSurface);
 
       surfaces.add(imageStreamReader.getSurface());
-      if (surfaces == null || imageReader == null) {
+      captureRequestBuilder.addTarget(imageStreamReader.getSurface());
+      if (surfaces == null) {
         return;
       }
-      captureRequestBuilder.addTarget(imageStreamReader.getSurface());
-
       cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
         @Override
         public void onConfigured(@NonNull CameraCaptureSession session) {
